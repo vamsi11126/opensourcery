@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { db } from '@/lib/db';
 import { formatStars } from '@/lib/utils';
 import { getStoredEmbedding, vectorSearch } from '@/lib/vector-search';
+import { SimilarProjects } from '@/components/SimilarProjects';
 
 export const revalidate = 3600;
 
@@ -205,6 +206,9 @@ export default async function ProjectDetail({
           </div>
         </section>
       )}
+
+      {/* Similar Vector Projects Component */}
+      <SimilarProjects projects={similar} />
 
       {/* Comment & Discussion Section */}
       <CommentSection slug={project.slug} signedIn={Boolean(session)} />

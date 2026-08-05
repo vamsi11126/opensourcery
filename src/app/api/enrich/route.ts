@@ -9,6 +9,8 @@ import { rateLimit } from '@/lib/rate-limit';
 import { evaluateUsefulness } from '@/lib/project-quality';
 import { canManageProject } from '@/lib/permissions';
 
+import { generateTechRadar } from '@/lib/tech-radar';
+
 interface EnrichedMetadata { title: string; shortDescription: string; tags: string[]; license: string | null; category: string | null; }
 const enrichmentTimes = new Map<string, number>();
 
@@ -80,6 +82,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         },
       });
       if (verdict.status === 'approved') {
+        await generateTechRadar({ id: project.id, title: project.title, shortDescription: project.shortDescription, sourceUrl: project.sourceUrl, tags: project.tags });
         const embedding = await createEmbedding(projectEmbeddingText(project));
         await storeEmbedding(project.id, embedding);
       }

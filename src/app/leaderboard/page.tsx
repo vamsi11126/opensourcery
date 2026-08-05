@@ -11,17 +11,7 @@ export const metadata: Metadata = {
 
 export const revalidate = 300;
 
-function badge(score: number): string | null {
-  return score >= 1000
-    ? 'Platinum'
-    : score >= 500
-    ? 'Gold'
-    : score >= 200
-    ? 'Silver'
-    : score >= 50
-    ? 'Bronze'
-    : null;
-}
+import { getCuratorTier } from '@/lib/karma';
 
 export default async function LeaderboardPage(): Promise<React.JSX.Element> {
   const session = await auth();
@@ -71,6 +61,7 @@ export default async function LeaderboardPage(): Promise<React.JSX.Element> {
           <tbody className="divide-y divide-slate-800/60">
             {users.map((user, index) => {
               const isCurrentUser = session?.user.id === user.id;
+              const tier = getCuratorTier(user.reputation);
               return (
                 <tr
                   key={user.id}
@@ -89,11 +80,9 @@ export default async function LeaderboardPage(): Promise<React.JSX.Element> {
                       <span className="font-bold text-white">
                         {user.name ?? 'Community member'}
                       </span>
-                      {badge(user.reputation) && (
-                        <Badge className="border-indigo-500/30 bg-indigo-500/10 text-indigo-300">
-                          {badge(user.reputation)}
-                        </Badge>
-                      )}
+                      <Badge className={tier.color}>
+                        {tier.badge} {tier.name}
+                      </Badge>
                     </div>
                   </td>
                   <td className="p-4 font-bold text-indigo-300">

@@ -125,6 +125,32 @@ export function ScrapeDashboard({
         </p>
       )}
 
+      {/* Analytics Summary Cards */}
+      <div className="mt-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 backdrop-blur-xl shadow-lg">
+          <p className="text-xs font-semibold text-slate-400">Automated Schedule</p>
+          <p className="mt-2 text-2xl font-black text-emerald-400">Every 12h</p>
+          <p className="mt-1 text-[11px] text-slate-400">Via Vercel Cron</p>
+        </div>
+        <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 backdrop-blur-xl shadow-lg">
+          <p className="text-xs font-semibold text-slate-400">Active Sources</p>
+          <p className="mt-2 text-2xl font-black text-indigo-400">
+            {sourceState.filter((s) => s.isActive).length} / {sourceState.length}
+          </p>
+          <p className="mt-1 text-[11px] text-slate-400">Ingestion discovery</p>
+        </div>
+        <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 backdrop-blur-xl shadow-lg">
+          <p className="text-xs font-semibold text-slate-400">LLM Verification</p>
+          <p className="mt-2 text-2xl font-black text-amber-400">Strict Auto-Approve</p>
+          <p className="mt-1 text-[11px] text-slate-400">gpt-4o-mini Audit Pass</p>
+        </div>
+        <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 backdrop-blur-xl shadow-lg">
+          <p className="text-xs font-semibold text-slate-400">Recent Scrape Logs</p>
+          <p className="mt-2 text-2xl font-black text-cyan-400">{logs.length}</p>
+          <p className="mt-1 text-[11px] text-slate-400">Completed runs</p>
+        </div>
+      </div>
+
       {/* Log Table Container */}
       <div className="mt-5 overflow-x-auto rounded-3xl border border-slate-800/80 bg-slate-900/60 backdrop-blur-xl shadow-xl">
         <table className="w-full min-w-[680px] text-left text-xs">

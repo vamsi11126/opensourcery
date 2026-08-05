@@ -42,3 +42,41 @@ export async function getStoredEmbedding(projectId: string): Promise<number[] | 
 export async function storeEmbedding(projectId: string, embedding: number[]): Promise<void> {
   await db.$executeRawUnsafe(`UPDATE "Project" SET embedding = CAST(${sqlString(vectorLiteral(embedding))} AS vector) WHERE id = ${sqlString(projectId)}`);
 }
+
+/** Find semantically similar open-source projects using vector distance. */
+export async function findSimilarProjects(projectId: string, limit = 4): Promise<ProjectWithDistance[]> {
+  const embedding = await getStoredEmbedding(projectId);
+  if (!embedding) return [];
+  return vectorSearch({ embedding, excludeId: projectId, limit });
+}
+
+/** Search open-source alternatives to a proprietary software tool. */
+export async function searchAlternatives(proprietaryTool: string, limit = 6): Promise<ProjectWithDistance[]> {
+  const altTag = `alt-${proprietaryTool.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const dbMatches = await db.project.findMany({
+    where: {
+      status: 'APPROVED',
+      OR: [
+        { tags: { has: altTag } },
+        { longDescription: { contains: proprietaryTool, mode: 'insensitive' } },
+      ],
+    },
+    take: limit,
+  });
+
+  if (dbMatches.length > 0) {
+    return dbMatches.map((p) => ({ ...p, distance: 0 }));
+  }
+
+  if (process.env.OPENAI_API_KEY) {
+    try {
+      const { createEmbedding } = await import('@/lib/embeddings');
+      const embedding = await createEmbedding(`Open source software alternative competing with ${proprietaryTool}`);
+      return vectorSearch({ embedding, limit });
+    } catch {
+      return [];
+    }
+  }
+
+  return [];
+}
