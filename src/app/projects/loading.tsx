@@ -1,0 +1,1 @@
+import { Skeleton } from '@/components/ui/skeleton'; export default function Loading(): React.JSX.Element { return <main className="container py-12"><Skeleton className="h-10 w-1/3" /><div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{[1,2,3,4,5,6].map((item) => <Skeleton key={item} className="h-56" />)}</div></main>; }

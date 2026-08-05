@@ -1,0 +1,4 @@
+import { NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { db } from '@/lib/db';
+export async function DELETE(_request: Request, { params }: { params: { slug: string; projectId: string } }): Promise<NextResponse> { try { const session = await auth(); if (!session) return NextResponse.json({ error: 'Authentication required.' }, { status: 401 }); const collection = await db.collection.findUnique({ where: { slug: params.slug } }); if (!collection || collection.authorId !== session.user.id) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 }); await db.projectCollection.delete({ where: { projectId_collectionId: { projectId: params.projectId, collectionId: collection.id } } }); return NextResponse.json({ data: { removed: true } }); } catch { return NextResponse.json({ error: 'Unable to remove project.' }, { status: 500 }); } }

@@ -1,0 +1,1 @@
+export default function AuthLayout({ children }: Readonly<{ children: React.ReactNode }>): React.JSX.Element { return <main className="container flex min-h-[calc(100vh-9rem)] items-center justify-center py-12"><div className="w-full max-w-md">{children}</div></main>; }

@@ -1,0 +1,4 @@
+import { NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { db } from '@/lib/db';
+export async function DELETE(_request: Request, { params }: { params: { id: string } }): Promise<NextResponse> { try { const session = await auth(); if (!session) return NextResponse.json({ error: 'Authentication required.' }, { status: 401 }); const comment = await db.comment.findUnique({ where: { id: params.id }, select: { authorId: true } }); if (!comment) return NextResponse.json({ error: 'Comment not found.' }, { status: 404 }); if (comment.authorId !== session.user.id && session.user.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden.' }, { status: 403 }); await db.comment.delete({ where: { id: params.id } }); return NextResponse.json({ data: { deleted: true } }); } catch { return NextResponse.json({ error: 'Unable to delete comment.' }, { status: 500 }); } }

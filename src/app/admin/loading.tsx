@@ -1,0 +1,1 @@
+import { Skeleton } from '@/components/ui/skeleton'; export default function Loading(): React.JSX.Element { return <main className="container py-12"><Skeleton className="h-10 w-1/3" /><Skeleton className="mt-8 h-64 w-full" /></main>; }

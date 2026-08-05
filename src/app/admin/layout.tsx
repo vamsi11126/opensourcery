@@ -1,0 +1,1 @@
+import { redirect } from 'next/navigation'; import { auth } from '@/lib/auth'; export default async function AdminLayout({ children }: Readonly<{ children: React.ReactNode }>): Promise<React.JSX.Element> { const session = await auth(); if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'MODERATOR')) redirect('/'); return <>{children}</>; }

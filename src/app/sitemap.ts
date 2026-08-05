@@ -1,0 +1,4 @@
+import type { MetadataRoute } from 'next';
+import { db } from '@/lib/db';
+export const dynamic = 'force-dynamic';
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> { const projects = await db.project.findMany({ where: { status: 'APPROVED' }, select: { slug: true, updatedAt: true } }); const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://opensourcery.app'; return [{ url: baseUrl, lastModified: new Date(), changeFrequency: 'daily', priority: 1 }, { url: `${baseUrl}/projects`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.9 }, { url: `${baseUrl}/leaderboard`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.5 }, { url: `${baseUrl}/collections`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.6 }, ...projects.map((project) => ({ url: `${baseUrl}/projects/${project.slug}`, lastModified: project.updatedAt, changeFrequency: 'weekly' as const, priority: 0.7 }))]; }

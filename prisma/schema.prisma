@@ -1,0 +1,213 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [vector]
+}
+
+enum ProjectStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FLAGGED
+}
+
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+model Project {
+  id String @id @default(cuid())
+  title String
+  slug String @unique
+  shortDescription String @db.VarChar(280)
+  longDescription String? @db.Text
+  sourceUrl String @unique
+  homepageUrl String?
+  license String?
+  language String[]
+  tags String[]
+  category String?
+  starsCount Int @default(0)
+  lastCommitDate DateTime?
+  embedding Unsupported("vector(1536)")?
+  status ProjectStatus @default(PENDING)
+  moderationFlags String[]
+  submittedById String?
+  submittedBy User? @relation(fields: [submittedById], references: [id])
+  submittedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  approvedAt DateTime?
+  approvedById String?
+  approvedBy User? @relation("ApprovedProjects", fields: [approvedById], references: [id])
+  savedBy UserSavedProject[]
+  comments Comment[]
+  collections ProjectCollection[]
+  @@index([status])
+  @@index([category])
+  @@index([slug])
+  @@index([sourceUrl])
+}
+
+model User {
+  id String @id @default(cuid())
+  name String?
+  email String? @unique
+  emailVerified DateTime?
+  image String?
+  passwordHash String?
+  githubId String? @unique
+  role UserRole @default(USER)
+  reputation Int @default(0)
+  emailDigest Boolean @default(true)
+  savedProjects UserSavedProject[]
+  submittedProjects Project[]
+  approvedProjects Project[] @relation("ApprovedProjects")
+  accounts Account[]
+  sessions Session[]
+  comments Comment[]
+  collections Collection[]
+  interests UserInterest[]
+  leaderboardEntry LeaderboardEntry?
+  searchLogs SearchLog[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UserSavedProject {
+  userId String
+  user User @relation(fields: [userId], references: [id])
+  projectId String
+  project Project @relation(fields: [projectId], references: [id])
+  savedAt DateTime @default(now())
+  @@id([userId, projectId])
+}
+
+model Comment {
+  id String @id @default(cuid())
+  content String @db.Text
+  projectId String
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  authorId String
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parentId String?
+  parent Comment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("CommentReplies")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([projectId, parentId])
+}
+
+model Collection {
+  id String @id @default(cuid())
+  name String
+  description String?
+  slug String @unique
+  authorId String
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  isPublic Boolean @default(true)
+  projects ProjectCollection[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProjectCollection {
+  projectId String
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  collectionId String
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  note String?
+  addedAt DateTime @default(now())
+  @@id([projectId, collectionId])
+}
+
+model LeaderboardEntry {
+  id String @id @default(cuid())
+  userId String @unique
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  score Int @default(0)
+  rank Int?
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model SearchLog {
+  id String @id @default(cuid())
+  query String
+  userId String?
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  @@index([createdAt])
+}
+
+model UserInterest {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tag String
+  category String?
+  createdAt DateTime @default(now())
+  @@unique([userId, tag])
+}
+
+model Account {
+  id String @id @default(cuid())
+  userId String
+  type String
+  provider String
+  providerAccountId String
+  refresh_token String? @db.Text
+  access_token String? @db.Text
+  expires_at Int?
+  token_type String?
+  scope String?
+  id_token String? @db.Text
+  session_state String?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id String @id @default(cuid())
+  sessionToken String @unique
+  userId String
+  expires DateTime
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token String @unique
+  expires DateTime
+  @@unique([identifier, token])
+}
+
+model ScrapedSource {
+  id            String     @id @default(cuid())
+  name          String
+  url           String     @unique
+  type          String
+  lastScrapedAt DateTime?
+  isActive      Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  logs          ScrapeLog[]
+}
+
+model ScrapeLog {
+  id              String        @id @default(cuid())
+  sourceId        String
+  source          ScrapedSource @relation(fields: [sourceId], references: [id])
+  projectsFound   Int           @default(0)
+  projectsNew     Int           @default(0)
+  projectsUpdated Int           @default(0)
+  status          String
+  error           String?
+  startedAt       DateTime      @default(now())
+  finishedAt      DateTime?
+  @@index([sourceId])
+  @@index([startedAt])
+}

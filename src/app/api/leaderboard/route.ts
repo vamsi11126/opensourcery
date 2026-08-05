@@ -1,0 +1,4 @@
+import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+export const revalidate = 300;
+export async function GET(): Promise<NextResponse> { try { const users = await db.user.findMany({ orderBy: { reputation: 'desc' }, take: 50, select: { id: true, name: true, image: true, reputation: true, _count: { select: { savedProjects: true, submittedProjects: true } }, submittedProjects: { where: { status: 'APPROVED' }, select: { id: true } } } }); return NextResponse.json({ data: users.map((user, index) => ({ id: user.id, name: user.name, image: user.image, reputation: user.reputation, rank: index + 1, bookmarksGiven: user._count.savedProjects, approvedSubmissions: user.submittedProjects.length })) }); } catch { return NextResponse.json({ error: 'Unable to load leaderboard.' }, { status: 500 }); } }
