@@ -10,11 +10,9 @@ export function Footer(): React.JSX.Element {
       <div className="container py-12">
         <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
           <div>
-            <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-cyan-400 p-0.5">
-                <div className="flex h-full w-full items-center justify-center rounded-[6px] bg-slate-950">
-                  <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
-                </div>
+            <Link href="/" className="flex items-center gap-2.5">
+              <div className="relative flex h-7 w-7 items-center justify-center overflow-hidden rounded-lg border border-indigo-500/30 bg-slate-900 shadow-md">
+                <img src="/logo.jpg" alt="OpenSourcery Logo" className="h-full w-full object-cover" />
               </div>
               <span className="text-lg font-black text-white">
                 Open<span className="text-indigo-400">Sourcery</span>

@@ -9,12 +9,10 @@ export async function Navbar(): Promise<React.JSX.Element> {
   return (
     <header className="sticky top-0 z-50 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl transition-all duration-300">
       <div className="container flex h-16 items-center justify-between gap-6">
-        {/* Brand Logo with 3D glowing icon */}
-        <Link href="/" className="group flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 via-blue-600 to-cyan-400 p-0.5 shadow-lg shadow-indigo-500/20 transition-all duration-300 group-hover:scale-105 group-hover:shadow-indigo-500/40">
-            <div className="flex h-full w-full items-center justify-center rounded-[10px] bg-slate-950">
-              <Sparkles className="h-4 w-4 text-cyan-400 transition-transform duration-300 group-hover:rotate-12" />
-            </div>
+        {/* Brand Logo with Concept 2 logo mark */}
+        <Link href="/" className="group flex items-center gap-3">
+          <div className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl border border-indigo-500/30 bg-slate-900 shadow-lg shadow-indigo-500/20 transition-all duration-300 group-hover:scale-105 group-hover:border-indigo-500/60 group-hover:shadow-indigo-500/40">
+            <img src="/logo.jpg" alt="OpenSourcery Logo" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110" />
           </div>
           <span className="text-xl font-black tracking-tight text-white">
             Open<span className="bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">Sourcery</span>
