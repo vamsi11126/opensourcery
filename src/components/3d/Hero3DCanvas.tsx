@@ -38,8 +38,23 @@ export function Hero3DCanvas(): React.JSX.Element {
     if (!ctx) return;
 
     let animationFrameId: number;
-    let width = (canvas.width = canvas.parentElement?.clientWidth || window.innerWidth);
-    let height = (canvas.height = canvas.parentElement?.clientHeight || window.innerHeight);
+
+    const updateSize = () => {
+      if (!canvas || !canvas.parentElement) return;
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const newWidth = rect.width || window.innerWidth;
+      const newHeight = rect.height || window.innerHeight;
+      
+      if (canvas.width !== newWidth || canvas.height !== newHeight) {
+        canvas.width = newWidth;
+        canvas.height = newHeight;
+      }
+    };
+
+    updateSize();
+
+    let width = canvas.width || window.innerWidth;
+    let height = canvas.height || window.innerHeight;
 
     const mouse = {
       x: width / 2,
@@ -54,25 +69,28 @@ export function Hero3DCanvas(): React.JSX.Element {
       mouse.targetY = e.clientY - rect.top;
     };
 
-    const handleResize = () => {
-      if (!canvas || !canvas.parentElement) return;
-      width = canvas.width = canvas.parentElement.clientWidth;
-      height = canvas.height = canvas.parentElement.clientHeight;
-    };
-
     window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('resize', handleResize);
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateSize();
+      width = canvas.width;
+      height = canvas.height;
+    });
+
+    if (canvas.parentElement) {
+      resizeObserver.observe(canvas.parentElement);
+    }
 
     const colors = [
-      'rgba(99, 102, 241, 0.7)',  // Indigo
-      'rgba(56, 189, 248, 0.7)',  // Sky blue
-      'rgba(168, 85, 247, 0.6)',  // Purple
-      'rgba(6, 182, 212, 0.6)',   // Cyan
+      'rgba(99, 102, 241, 0.85)',  // Vivid Indigo
+      'rgba(56, 189, 248, 0.85)',  // Sky blue
+      'rgba(168, 85, 247, 0.75)',  // Purple
+      'rgba(6, 182, 212, 0.8)',   // Cyan
     ];
 
     // Generate 3D Particles
+    const particleCount = 75;
     const particles: Particle[] = [];
-    const particleCount = Math.min(Math.floor((width * height) / 12000), 65);
 
     for (let i = 0; i < particleCount; i++) {
       const z = Math.random() * 500 + 50;
@@ -81,10 +99,10 @@ export function Hero3DCanvas(): React.JSX.Element {
         y: (Math.random() - 0.5) * height * 1.5,
         z,
         originalZ: z,
-        radius: Math.random() * 2 + 1,
-        vx: (Math.random() - 0.5) * 0.4,
-        vy: (Math.random() - 0.5) * 0.4,
-        vz: (Math.random() - 0.5) * 0.2,
+        radius: Math.random() * 2.5 + 1.2,
+        vx: (Math.random() - 0.5) * 0.5,
+        vy: (Math.random() - 0.5) * 0.5,
+        vz: (Math.random() - 0.5) * 0.3,
         color: colors[Math.floor(Math.random() * colors.length)],
       });
     }
@@ -92,43 +110,43 @@ export function Hero3DCanvas(): React.JSX.Element {
     // Generate 3D wireframe shapes
     const shapes: Shape3D[] = [
       {
-        x: -width * 0.3,
-        y: -height * 0.15,
-        z: 300,
-        size: 45,
+        x: -width * 0.32,
+        y: -height * 0.12,
+        z: 280,
+        size: 50,
         rotX: 0.2,
         rotY: 0.4,
         rotZ: 0.1,
-        rotSpeedX: 0.005,
-        rotSpeedY: 0.008,
+        rotSpeedX: 0.006,
+        rotSpeedY: 0.009,
         type: 'cube',
-        color: 'rgba(99, 102, 241, 0.4)',
+        color: 'rgba(99, 102, 241, 0.65)',
       },
       {
-        x: width * 0.32,
-        y: height * 0.1,
-        z: 250,
-        size: 55,
+        x: width * 0.33,
+        y: height * 0.08,
+        z: 240,
+        size: 60,
         rotX: 0.5,
         rotY: 0.1,
         rotZ: 0.3,
-        rotSpeedX: -0.006,
-        rotSpeedY: 0.007,
+        rotSpeedX: -0.007,
+        rotSpeedY: 0.008,
         type: 'cube',
-        color: 'rgba(56, 189, 248, 0.4)',
+        color: 'rgba(56, 189, 248, 0.65)',
       },
       {
-        x: width * 0.25,
+        x: width * 0.26,
         y: -height * 0.22,
-        z: 350,
-        size: 35,
+        z: 320,
+        size: 40,
         rotX: 0.1,
         rotY: 0.8,
         rotZ: 0.4,
-        rotSpeedX: 0.007,
-        rotSpeedY: -0.004,
+        rotSpeedX: 0.008,
+        rotSpeedY: -0.005,
         type: 'pyramid',
-        color: 'rgba(192, 132, 252, 0.45)',
+        color: 'rgba(192, 132, 252, 0.7)',
       },
     ];
 
@@ -156,23 +174,28 @@ export function Hero3DCanvas(): React.JSX.Element {
     ];
 
     const project = (x: number, y: number, z: number) => {
+      const currentWidth = canvas.width || width;
+      const currentHeight = canvas.height || height;
       const scale = fov / (fov + z);
       return {
-        x: x * scale + width / 2,
-        y: y * scale + height / 2,
+        x: x * scale + currentWidth / 2,
+        y: y * scale + currentHeight / 2,
         scale,
       };
     };
 
     const render = () => {
+      const currentWidth = canvas.width || width;
+      const currentHeight = canvas.height || height;
+
       // Smooth mouse easing
       mouse.x += (mouse.targetX - mouse.x) * 0.04;
       mouse.y += (mouse.targetY - mouse.y) * 0.04;
 
-      const offsetX = (mouse.x - width / 2) * 0.15;
-      const offsetY = (mouse.y - height / 2) * 0.15;
+      const offsetX = (mouse.x - currentWidth / 2) * 0.15;
+      const offsetY = (mouse.y - currentHeight / 2) * 0.15;
 
-      ctx.clearRect(0, 0, width, height);
+      ctx.clearRect(0, 0, currentWidth, currentHeight);
 
       // Render projected particles & connect lines
       const projectedParticles: { x: number; y: number; scale: number; p: Particle }[] = [];
@@ -184,8 +207,8 @@ export function Hero3DCanvas(): React.JSX.Element {
         p.y += p.vy;
         p.z += p.vz;
 
-        if (Math.abs(p.x) > width) p.vx *= -1;
-        if (Math.abs(p.y) > height) p.vy *= -1;
+        if (Math.abs(p.x) > currentWidth) p.vx *= -1;
+        if (Math.abs(p.y) > currentHeight) p.vy *= -1;
         if (p.z < 50 || p.z > 600) p.vz *= -1;
 
         const projected = project(p.x + offsetX, p.y + offsetY, p.z);
@@ -193,9 +216,9 @@ export function Hero3DCanvas(): React.JSX.Element {
 
         // Draw particle node
         ctx.beginPath();
-        ctx.arc(projected.x, projected.y, Math.max(0.5, p.radius * projected.scale), 0, Math.PI * 2);
+        ctx.arc(projected.x, projected.y, Math.max(0.8, p.radius * projected.scale), 0, Math.PI * 2);
         ctx.fillStyle = p.color;
-        ctx.shadowBlur = 12 * projected.scale;
+        ctx.shadowBlur = 14 * projected.scale;
         ctx.shadowColor = p.color;
         ctx.fill();
         ctx.shadowBlur = 0;
@@ -211,13 +234,13 @@ export function Hero3DCanvas(): React.JSX.Element {
           const dy = p1.y - p2.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
 
-          if (dist < 130) {
-            const alpha = (1 - dist / 130) * 0.25 * Math.min(p1.scale, p2.scale);
+          if (dist < 140) {
+            const alpha = (1 - dist / 140) * 0.35 * Math.min(p1.scale, p2.scale);
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
             ctx.lineTo(p2.x, p2.y);
             ctx.strokeStyle = `rgba(99, 102, 241, ${alpha})`;
-            ctx.lineWidth = 0.8;
+            ctx.lineWidth = 1.0;
             ctx.stroke();
           }
         }
@@ -271,8 +294,8 @@ export function Hero3DCanvas(): React.JSX.Element {
           }
         });
         ctx.strokeStyle = shape.color;
-        ctx.lineWidth = 1.4;
-        ctx.shadowBlur = 15;
+        ctx.lineWidth = 1.8;
+        ctx.shadowBlur = 18;
         ctx.shadowColor = shape.color;
         ctx.stroke();
         ctx.shadowBlur = 0;
@@ -285,7 +308,7 @@ export function Hero3DCanvas(): React.JSX.Element {
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       cancelAnimationFrame(animationFrameId);
     };
   }, []);
@@ -293,7 +316,7 @@ export function Hero3DCanvas(): React.JSX.Element {
   return (
     <canvas
       ref={canvasRef}
-      className="pointer-events-none absolute inset-0 h-full w-full opacity-70"
+      className="pointer-events-none absolute inset-0 z-0 h-full w-full opacity-90 block"
     />
   );
 }
