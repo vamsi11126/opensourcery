@@ -13,8 +13,8 @@ export async function POST(request: Request): Promise<NextResponse> {
     const session = await auth();
     if (!isCronRequest(request) && (!session || session.user.role !== 'ADMIN')) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
     const cronRequest = isCronRequest(request);
-    const chosen = await selectSources({ forceRefresh: !cronRequest, useAi: cronRequest });
-    const sources = await db.scrapedSource.findMany({ where: { url: { in: chosen.map((source) => source.url) }, isActive: true } });
+    await selectSources({ forceRefresh: !cronRequest, useAi: cronRequest });
+    const sources = await db.scrapedSource.findMany({ where: { isActive: true } });
     const results = await Promise.all(sources.map((source) => scrapeSource(source)));
     return NextResponse.json({ data: { sourcesScraped: results.length, projectsFound: results.reduce((sum, result) => sum + result.projectsFound, 0), projectsNew: results.reduce((sum, result) => sum + result.projectsNew, 0), projectsUpdated: results.reduce((sum, result) => sum + result.projectsUpdated, 0), results } });
   } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : 'Scrape run failed.' }, { status: 500 }); }
