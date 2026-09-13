@@ -1,6 +1,33 @@
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 
+// ---------------------------------------------------------------------------
+// Production boot guard
+//
+// Rate limiting is a security control. A security control that silently
+// fails open when misconfigured is worse than no control at all, because it
+// passes code review ("rate limiting is there") while providing zero runtime
+// protection. In production we therefore refuse to start if the required
+// Upstash env vars are missing — it is better to crash loudly on first request
+// (the serverless cold-start that loads this module) than to serve unlimited
+// traffic without any operator realising rate limiting is disabled.
+//
+// In development and test we keep the graceful fallback (allow + warn) so
+// local dev without a Redis instance still works.
+// ---------------------------------------------------------------------------
+if (process.env.NODE_ENV === 'production') {
+  const missing: string[] = [];
+  if (!process.env.UPSTASH_REDIS_REST_URL) missing.push('UPSTASH_REDIS_REST_URL');
+  if (!process.env.UPSTASH_REDIS_REST_TOKEN) missing.push('UPSTASH_REDIS_REST_TOKEN');
+  if (missing.length > 0) {
+    throw new Error(
+      `[rate-limit] Missing required environment variable(s) in production: ${missing.join(', ')}. ` +
+        'Rate limiting is a security control and must be configured before the app serves traffic. ' +
+        'Create a free Upstash Redis instance at https://console.upstash.com/ and set these variables.',
+    );
+  }
+}
+
 /**
  * Returns the best-effort real client IP from a Next.js Request.
  *
@@ -46,10 +73,6 @@ function getRedis(): Redis | null {
  * @param limit    Maximum requests allowed in the window (default: 10)
  * @param windowMs Window length in milliseconds (default: 60 000)
  * @returns        `true` if the request is allowed, `false` if it should be denied (429)
- *
- * Graceful degradation: if Upstash is not configured (env vars missing) or
- * unavailable, this logs a warning and returns `true` (allow) so the app
- * stays functional during development without Redis configured.
  */
 export async function rateLimit(
   key: string,
@@ -58,11 +81,13 @@ export async function rateLimit(
 ): Promise<boolean> {
   const redis = getRedis();
   if (!redis) {
-    // Dev fallback — warn once per process so CI/CD doesn't break
+    // Non-production fallback: warn and allow.
+    // This path is unreachable in production because the module-level guard
+    // above throws before any code reaches this point if env vars are missing.
     if (process.env.NODE_ENV !== 'test') {
       console.warn(
         '[rate-limit] UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN not set — ' +
-          'rate limiting is disabled. Set these env vars for production.',
+          'rate limiting is disabled. This is acceptable in local dev; set these vars for production.',
       );
     }
     return true;
