@@ -1,6 +1,119 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-export async function GET(): Promise<NextResponse> { try { const session = await auth(); if (!session) return NextResponse.json({ error: 'Authentication required.' }, { status: 401 }); const saved = await db.userSavedProject.findMany({ where: { userId: session.user.id }, select: { projectId: true } }); return NextResponse.json({ data: saved.map((item) => item.projectId) }); } catch { return NextResponse.json({ error: 'Unable to load bookmarks.' }, { status: 500 }); } }
-export async function POST(request: Request): Promise<NextResponse> { try { const session = await auth(); if (!session) return NextResponse.json({ error: 'Authentication required.' }, { status: 401 }); const body = await request.json() as { projectId?: string }; if (!body.projectId) return NextResponse.json({ error: 'Project ID is required.' }, { status: 400 }); const existing = await db.userSavedProject.findUnique({ where: { userId_projectId: { userId: session.user.id, projectId: body.projectId } } }); if (!existing) { const project = await db.project.findUnique({ where: { id: body.projectId }, select: { submittedById: true } }); await db.userSavedProject.create({ data: { userId: session.user.id, projectId: body.projectId } }); await db.user.update({ where: { id: session.user.id }, data: { reputation: { increment: 1 } } }); if (project?.submittedById && project.submittedById !== session.user.id) await db.user.update({ where: { id: project.submittedById }, data: { reputation: { increment: 2 } } }); } return NextResponse.json({ data: { saved: true } }, { status: 201 }); } catch { return NextResponse.json({ error: 'Unable to save project.' }, { status: 500 }); } }
-export async function DELETE(request: Request): Promise<NextResponse> { try { const session = await auth(); if (!session) return NextResponse.json({ error: 'Authentication required.' }, { status: 401 }); const projectId = new URL(request.url).searchParams.get('projectId'); if (!projectId) return NextResponse.json({ error: 'Project ID is required.' }, { status: 400 }); const existing = await db.userSavedProject.findUnique({ where: { userId_projectId: { userId: session.user.id, projectId } } }); if (existing) { await db.userSavedProject.delete({ where: { userId_projectId: { userId: session.user.id, projectId } } }); await db.user.update({ where: { id: session.user.id }, data: { reputation: { decrement: 1 } } }); } return NextResponse.json({ data: { saved: false } }); } catch { return NextResponse.json({ error: 'Unable to remove bookmark.' }, { status: 500 }); } }
+import { rateLimit } from '@/lib/rate-limit';
+
+export async function GET(): Promise<NextResponse> {
+  try {
+    const session = await auth();
+    if (!session) return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
+    // Only return currently-active bookmarks
+    const saved = await db.userSavedProject.findMany({
+      where: { userId: session.user.id, active: true },
+      select: { projectId: true },
+    });
+    return NextResponse.json({ data: saved.map((item) => item.projectId) });
+  } catch {
+    return NextResponse.json({ error: 'Unable to load bookmarks.' }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request): Promise<NextResponse> {
+  try {
+    const session = await auth();
+    if (!session) return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
+
+    if (!await rateLimit(`bookmark-post:${session.user.id}`, 20, 60_000)) {
+      return NextResponse.json({ error: 'Too many requests. Try again later.' }, { status: 429 });
+    }
+
+    const body = await request.json() as { projectId?: string };
+    if (!body.projectId) return NextResponse.json({ error: 'Project ID is required.' }, { status: 400 });
+
+    const existing = await db.userSavedProject.findUnique({
+      where: { userId_projectId: { userId: session.user.id, projectId: body.projectId } },
+    });
+
+    if (existing?.active) {
+      // Already actively bookmarked — no-op
+      return NextResponse.json({ data: { saved: true } }, { status: 200 });
+    }
+
+    const project = await db.project.findUnique({
+      where: { id: body.projectId },
+      select: { submittedById: true },
+    });
+
+    if (existing) {
+      // Record exists but was soft-deleted — reactivate without re-granting reputation
+      await db.userSavedProject.update({
+        where: { userId_projectId: { userId: session.user.id, projectId: body.projectId } },
+        data: { active: true, savedAt: new Date() },
+      });
+    } else {
+      // First-ever bookmark for this (user, project) pair — grant reputation once
+      await db.userSavedProject.create({
+        data: {
+          userId: session.user.id,
+          projectId: body.projectId,
+          active: true,
+          reputationGranted: true,
+        },
+      });
+      // Grant bookmarker +1
+      await db.user.update({
+        where: { id: session.user.id },
+        data: { reputation: { increment: 1 } },
+      });
+      // Grant submitter +2 (skip self-bookmarks)
+      if (project?.submittedById && project.submittedById !== session.user.id) {
+        await db.user.update({
+          where: { id: project.submittedById },
+          data: { reputation: { increment: 2 } },
+        });
+      }
+    }
+
+    return NextResponse.json({ data: { saved: true } }, { status: 201 });
+  } catch {
+    return NextResponse.json({ error: 'Unable to save project.' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request): Promise<NextResponse> {
+  try {
+    const session = await auth();
+    if (!session) return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
+
+    if (!await rateLimit(`bookmark-delete:${session.user.id}`, 20, 60_000)) {
+      return NextResponse.json({ error: 'Too many requests. Try again later.' }, { status: 429 });
+    }
+
+    const projectId = new URL(request.url).searchParams.get('projectId');
+    if (!projectId) return NextResponse.json({ error: 'Project ID is required.' }, { status: 400 });
+
+    const existing = await db.userSavedProject.findUnique({
+      where: { userId_projectId: { userId: session.user.id, projectId } },
+    });
+
+    if (existing?.active) {
+      // Soft-delete: mark inactive. Do NOT decrement the submitter's reputation —
+      // that would make it farmable by cycling bookmark/unbookmark.
+      // Decrement only the bookmarker's own +1 earned when they bookmarked.
+      await db.userSavedProject.update({
+        where: { userId_projectId: { userId: session.user.id, projectId } },
+        data: { active: false },
+      });
+      if (existing.reputationGranted) {
+        await db.user.update({
+          where: { id: session.user.id },
+          data: { reputation: { decrement: 1 } },
+        });
+      }
+    }
+
+    return NextResponse.json({ data: { saved: false } });
+  } catch {
+    return NextResponse.json({ error: 'Unable to remove bookmark.' }, { status: 500 });
+  }
+}

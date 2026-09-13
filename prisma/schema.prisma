@@ -81,11 +81,19 @@ model User {
 }
 
 model UserSavedProject {
-  userId String
-  user User @relation(fields: [userId], references: [id])
-  projectId String
-  project Project @relation(fields: [projectId], references: [id])
-  savedAt DateTime @default(now())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id])
+  projectId         String
+  project           Project  @relation(fields: [projectId], references: [id])
+  savedAt           DateTime @default(now())
+  /// Soft-delete: false when the user has removed the bookmark. The record is
+  /// never hard-deleted so we retain the audit trail needed to prevent
+  /// reputation farming via bookmark → unbookmark → bookmark cycles.
+  active            Boolean  @default(true)
+  /// Set to true the first time reputation was granted for this (user, project)
+  /// pair. Never reset to false — ensures re-bookmarking after removal cannot
+  /// trigger a second reputation grant.
+  reputationGranted Boolean  @default(false)
   @@id([userId, projectId])
 }
 
