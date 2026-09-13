@@ -8,7 +8,6 @@ import { normalizeUrl } from '@/lib/dedup';
 import { rateLimit } from '@/lib/rate-limit';
 import { evaluateUsefulness } from '@/lib/project-quality';
 import { canManageProject } from '@/lib/permissions';
-
 import { generateTechRadar } from '@/lib/tech-radar';
 
 interface EnrichedMetadata { title: string; shortDescription: string; tags: string[]; license: string | null; category: string | null; }
@@ -31,7 +30,9 @@ export async function POST(request: Request): Promise<NextResponse> {
     const body = await request.json() as { url?: string; projectId?: string };
     if (!body.url) return NextResponse.json({ error: 'A project URL is required.' }, { status: 400 });
     const normalized = normalizeUrl(body.url);
-    if (!rateLimit(`enrich:${session.user.id}`)) return NextResponse.json({ error: 'Too many enrichment requests.' }, { status: 429 });
+    if (!await rateLimit(`enrich:${session.user.id}`, 10, 60_000)) {
+      return NextResponse.json({ error: 'Too many enrichment requests.' }, { status: 429 });
+    }
     const lastRun = enrichmentTimes.get(normalized) ?? 0;
     if (Date.now() - lastRun < 3600000) return NextResponse.json({ error: 'This URL was enriched recently. Try again later.' }, { status: 429 });
     enrichmentTimes.set(normalized, Date.now());
@@ -45,7 +46,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       if (content) metadata = { ...metadata, ...JSON.parse(content) as Partial<EnrichedMetadata>, shortDescription: (JSON.parse(content) as Partial<EnrichedMetadata>).shortDescription?.slice(0, 280) ?? metadata.shortDescription };
     }
 
-    // NEW: judge whether this project is worth including before persisting it
+    // Judge whether this project is worth including before persisting it
     const verdict = await evaluateUsefulness(
       client,
       {
