@@ -34,44 +34,46 @@ export async function POST(request: Request): Promise<NextResponse> {
       where: { userId_projectId: { userId: session.user.id, projectId: body.projectId } },
     });
 
-    if (existing?.active) {
-      // Already actively bookmarked — no-op
+    if (existing) {
+      // Record already exists (active or soft-deleted).
+      // Reactivate if needed — NO reputation change under any condition.
+      // Reputation, once granted, is permanent and not re-grantable.
+      if (!existing.active) {
+        await db.userSavedProject.update({
+          where: { userId_projectId: { userId: session.user.id, projectId: body.projectId } },
+          data: { active: true, savedAt: new Date() },
+        });
+      }
       return NextResponse.json({ data: { saved: true } }, { status: 200 });
     }
 
+    // First-ever bookmark for this (user, project) pair — grant reputation once, permanently.
     const project = await db.project.findUnique({
       where: { id: body.projectId },
       select: { submittedById: true },
     });
 
-    if (existing) {
-      // Record exists but was soft-deleted — reactivate without re-granting reputation
-      await db.userSavedProject.update({
-        where: { userId_projectId: { userId: session.user.id, projectId: body.projectId } },
-        data: { active: true, savedAt: new Date() },
-      });
-    } else {
-      // First-ever bookmark for this (user, project) pair — grant reputation once
-      await db.userSavedProject.create({
-        data: {
-          userId: session.user.id,
-          projectId: body.projectId,
-          active: true,
-          reputationGranted: true,
-        },
-      });
-      // Grant bookmarker +1
+    await db.userSavedProject.create({
+      data: {
+        userId: session.user.id,
+        projectId: body.projectId,
+        active: true,
+        reputationGranted: true, // audit flag only — never read back to gate any decision
+      },
+    });
+
+    // Grant bookmarker +1
+    await db.user.update({
+      where: { id: session.user.id },
+      data: { reputation: { increment: 1 } },
+    });
+
+    // Grant submitter +2 (skip self-bookmarks)
+    if (project?.submittedById && project.submittedById !== session.user.id) {
       await db.user.update({
-        where: { id: session.user.id },
-        data: { reputation: { increment: 1 } },
+        where: { id: project.submittedById },
+        data: { reputation: { increment: 2 } },
       });
-      // Grant submitter +2 (skip self-bookmarks)
-      if (project?.submittedById && project.submittedById !== session.user.id) {
-        await db.user.update({
-          where: { id: project.submittedById },
-          data: { reputation: { increment: 2 } },
-        });
-      }
     }
 
     return NextResponse.json({ data: { saved: true } }, { status: 201 });
@@ -97,19 +99,13 @@ export async function DELETE(request: Request): Promise<NextResponse> {
     });
 
     if (existing?.active) {
-      // Soft-delete: mark inactive. Do NOT decrement the submitter's reputation —
-      // that would make it farmable by cycling bookmark/unbookmark.
-      // Decrement only the bookmarker's own +1 earned when they bookmarked.
+      // Soft-delete only. Reputation is never reversed under any condition —
+      // decrementing on unbookmark would allow farming by cycling, and
+      // withholding the earned reputation is the correct security property.
       await db.userSavedProject.update({
         where: { userId_projectId: { userId: session.user.id, projectId } },
         data: { active: false },
       });
-      if (existing.reputationGranted) {
-        await db.user.update({
-          where: { id: session.user.id },
-          data: { reputation: { decrement: 1 } },
-        });
-      }
     }
 
     return NextResponse.json({ data: { saved: false } });
