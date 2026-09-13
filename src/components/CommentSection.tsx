@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { MessageSquare, Send } from 'lucide-react';
 
 interface CommentView {
@@ -98,7 +99,17 @@ export function CommentSection({
       )}
 
       {loading ? (
-        <p className="mt-8 text-xs text-slate-400">Loading comments…</p>
+        <div className="mt-8 space-y-4">
+          <div className="rounded-2xl border border-slate-800/60 bg-slate-900/30 p-5 backdrop-blur-sm">
+            <Skeleton className="h-4 w-36 rounded-md mb-3" />
+            <Skeleton className="h-4 w-full rounded-md" />
+            <Skeleton className="mt-2 h-4 w-3/4 rounded-md" />
+          </div>
+          <div className="rounded-2xl border border-slate-800/60 bg-slate-900/30 p-5 backdrop-blur-sm">
+            <Skeleton className="h-4 w-28 rounded-md mb-3" />
+            <Skeleton className="h-4 w-5/6 rounded-md" />
+          </div>
+        </div>
       ) : comments.length ? (
         <div className="mt-8 space-y-6">
           {comments.map((comment) => (

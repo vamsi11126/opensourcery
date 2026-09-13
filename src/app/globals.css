@@ -146,6 +146,29 @@ body {
   animation: shimmer 4s linear infinite;
 }
 
+@keyframes skeletonShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(30, 41, 59, 0.5) 0%,
+    rgba(51, 65, 85, 0.4) 25%,
+    rgba(99, 102, 241, 0.15) 50%,
+    rgba(51, 65, 85, 0.4) 75%,
+    rgba(30, 41, 59, 0.5) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 2.5s ease-in-out infinite;
+}
+
+
 /* Modern custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

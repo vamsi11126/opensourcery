@@ -1,11 +1,12 @@
 import Link from 'next/link';
-import { ArrowRight, Sparkles, Code2, Database, Shield, Zap, Search } from 'lucide-react';
+import { ArrowRight, Sparkles, Code2, Database, Shield, Zap, Search, FolderGit2 } from 'lucide-react';
 import { SearchBar } from '@/components/SearchBar';
 import { TrendingSearches } from '@/components/TrendingSearches';
 import { ProjectCard, type ProjectCardData } from '@/components/ProjectCard';
 import { Hero3DCanvas } from '@/components/3d/Hero3DCanvas';
 import { db } from '@/lib/db';
 import { Button } from '@/components/ui/button';
+import { getListedProjectsCount } from '@/lib/projects';
 
 export const metadata = {
   title: 'OpenSourcery - Semantic Intent Discovery for Open Source',
@@ -37,7 +38,10 @@ async function featured(): Promise<ProjectCardData[]> {
 }
 
 export default async function Home(): Promise<React.JSX.Element> {
-  const projects = await featured();
+  const [projects, projectCount] = await Promise.all([
+    featured(),
+    getListedProjectsCount(),
+  ]);
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -63,10 +67,14 @@ export default async function Home(): Promise<React.JSX.Element> {
 
         <div className="container relative z-10 max-w-5xl text-center">
           {/* Badge indicator */}
-          <div className="mx-auto mb-8 flex w-fit items-center gap-2 rounded-full border border-indigo-500/30 bg-slate-900/80 px-4 py-1.5 text-xs font-semibold text-indigo-300 backdrop-blur-xl shadow-lg shadow-indigo-950/40 animate-float">
+          <div className="mx-auto mb-8 flex flex-wrap items-center justify-center gap-2 rounded-full border border-indigo-500/30 bg-slate-900/80 px-4 py-1.5 text-xs font-semibold text-indigo-300 backdrop-blur-xl shadow-lg shadow-indigo-950/40 animate-float">
             <Sparkles className="h-4 w-4 text-cyan-400 animate-spin-slow" />
             <span>Semantic Intent Search Engine</span>
             <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping" />
+            <span className="hidden h-3 w-px bg-slate-700 sm:inline-block" />
+            <span className="text-cyan-300 font-medium">
+              {projectCount.toLocaleString()} Projects Listed
+            </span>
           </div>
 
           {/* Main Headline */}
@@ -77,7 +85,8 @@ export default async function Home(): Promise<React.JSX.Element> {
           </h1>
 
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-slate-300 sm:text-xl">
-            Describe your problem in plain language. Discover high-quality open-source projects tailored to your tech stack and requirements.
+            Describe your problem in plain language. Discover high-quality open-source projects tailored to your tech stack and requirements across{' '}
+            <span className="font-semibold text-indigo-300">{projectCount.toLocaleString()} listed projects</span>.
           </p>
 
           {/* Glowing Search Bar Container */}
@@ -91,9 +100,17 @@ export default async function Home(): Promise<React.JSX.Element> {
           <TrendingSearches />
 
           {/* Floating Feature / Stat Cards */}
-          <div className="mt-16 grid grid-cols-2 gap-4 text-left sm:grid-cols-4">
+          <div className="mt-16 grid grid-cols-2 gap-4 text-left sm:grid-cols-3 lg:grid-cols-5">
             <div className="group rounded-2xl border border-slate-800/80 bg-slate-900/40 p-4 backdrop-blur-md transition-all hover:border-indigo-500/40 hover:bg-slate-900/70">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400 mb-3 border border-indigo-500/20">
+                <FolderGit2 className="h-4 w-4" />
+              </div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Projects Listed</p>
+              <p className="mt-1 text-sm font-bold text-white">{projectCount.toLocaleString()} Available</p>
+            </div>
+
+            <div className="group rounded-2xl border border-slate-800/80 bg-slate-900/40 p-4 backdrop-blur-md transition-all hover:border-indigo-500/40 hover:bg-slate-900/70">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 mb-3 border border-blue-500/20">
                 <Search className="h-4 w-4" />
               </div>
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Search Paradigm</p>
@@ -116,7 +133,7 @@ export default async function Home(): Promise<React.JSX.Element> {
               <p className="mt-1 text-sm font-bold text-white">GitHub & GitLab</p>
             </div>
 
-            <div className="group rounded-2xl border border-slate-800/80 bg-slate-900/40 p-4 backdrop-blur-md transition-all hover:border-indigo-500/40 hover:bg-slate-900/70">
+            <div className="col-span-2 sm:col-span-1 group rounded-2xl border border-slate-800/80 bg-slate-900/40 p-4 backdrop-blur-md transition-all hover:border-indigo-500/40 hover:bg-slate-900/70">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 mb-3 border border-emerald-500/20">
                 <Shield className="h-4 w-4" />
               </div>
@@ -135,14 +152,19 @@ export default async function Home(): Promise<React.JSX.Element> {
               <Code2 className="h-4 w-4 text-indigo-400" />
               <p className="text-xs font-bold uppercase tracking-wider text-indigo-400">Explore ecosystem</p>
             </div>
-            <h2 className="mt-2 text-3xl font-black text-white sm:text-4xl">Featured projects</h2>
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <h2 className="text-3xl font-black text-white sm:text-4xl">Featured projects</h2>
+              <span className="inline-flex items-center rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-300">
+                {projectCount.toLocaleString()} listed in system
+              </span>
+            </div>
           </div>
           <Link href="/projects">
             <Button
               variant="ghost"
               className="rounded-xl border border-slate-800 bg-slate-900/60 text-slate-300 hover:border-indigo-500/40 hover:bg-slate-800 hover:text-white"
             >
-              Browse all projects <ArrowRight className="ml-2 h-4 w-4 text-indigo-400" />
+              Browse all {projectCount > 0 ? `${projectCount.toLocaleString()} ` : ''}projects <ArrowRight className="ml-2 h-4 w-4 text-indigo-400" />
             </Button>
           </Link>
         </div>
