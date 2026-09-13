@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { db } from '@/lib/db';
+import { detectInjectionAttempt } from '@/lib/injection-prefilter';
 
 const blockedTerms: Array<[RegExp, string]> = [
   [/\b(child sexual|csam|sexual minor)\b/i, 'illegal-sexual-content'],
@@ -54,6 +55,16 @@ export async function checkContent(input: ModerationInput): Promise<ModerationRe
   const flags = blockedTerms.flatMap(([pattern, flag]) => pattern.test(text) ? [flag] : []);
   let autoApprove = input.trustedSource ?? false;
   let reason = '';
+
+  // Pre-filter: deterministic regex layer independent of LLM behavior.
+  // LLM classifiers are probabilistic; they block injection attempts reliably
+  // (approved=false) but do not always return the 'prompt-injection-attempt'
+  // flag in their structured output. This layer ensures the hard veto below
+  // fires for all known injection phrasings even under LLM model changes.
+  if (detectInjectionAttempt(text)) {
+    flags.push('prompt-injection-attempt');
+    autoApprove = false;
+  }
 
   if (process.env.OPENAI_API_KEY) {
     try {
